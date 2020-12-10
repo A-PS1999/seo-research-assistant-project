@@ -69,5 +69,25 @@ def seo_find_stopwords(urlSoup):
         print("A title was not found for your page.")
 
 
+# checks to see if URL is less than 60 characters long for optimum SEO
+def seo_url_length(url):
+    if len(url) < 60:
+        print("Your URL is in the optimum length range, that's good!")
+    elif len(url) > 60:
+        print("Your URL is too long for optimum SEO. If possible, try shortening it.")
+
+
+# checks for presence of keywords in URL, as keyword presence can be SEO boost
+def seo_url_keywords(keywords, url):
+    for keyword in keywords:
+        if keyword.casefold() in url:
+            print("The keyword \"{0}\" was found in your URL. That's good!".format(keyword))
+        else:
+            print("The keyword \"{0}\" was not found in your URL. Your URL may be improved by adding "
+                  "keywords if you lack enough of them.".format(keyword))
+
+
 seo_find_keywords(keywords, urlSoup)
 seo_find_stopwords(urlSoup)
+seo_url_length(url)
+seo_url_keywords(keywords, url)
