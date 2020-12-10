@@ -5,6 +5,7 @@ Planned features include analysis of URL for length and presence of keywords, pr
 the page and an analysis/comparison of keywords across different sites. APIs may be used.
 """
 import requests
+import re
 from bs4 import BeautifulSoup
 
 # Get a site URL and create empty list for keywords which will be analysed to be entered.
@@ -20,4 +21,53 @@ while True:
         break
     keywords.append(inp)
 
-print(keywords)
+# attempts to access provided URL, returns errors if unable
+try:
+    agent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0"
+    url_request = requests.get(url, headers={'User-Agent': agent})
+    url_request.raise_for_status()
+    urlSoup = BeautifulSoup(url_request.text, 'lxml')
+except requests.exceptions.MissingSchema as exc:
+    print("ERROR: Invalid URL provided. Please try again with a valid URL.")
+    raise exc
+except requests.exceptions.HTTPError as exc:
+    print("ERROR: 404 error, URL not found.")
+    raise exc
+
+
+# below function scans provided URL and returns all found keywords and the number of times they appear
+def seo_find_keywords(keywords, urlSoup):
+    try:
+        for keyword in keywords:
+            keyword_count = len(re.findall(keyword, str(urlSoup), re.IGNORECASE))
+            if keyword_count > 0:
+                print("The keyword " + keyword + " was found " + str(keyword_count) + " times in " + url + ".")
+            else:
+                print("The keyword '" + keyword + "' was not found in the URL you provided.")
+    except UnicodeDecodeError as exc:
+        print("Error: %s" % exc)
+        raise exc
+
+
+# searches HTML page title for SEO stop words from stopwords.txt, then provides number and list of present stop words
+def seo_find_stopwords(urlSoup):
+    stopwords_count = 0
+    stopwords_list = []
+    if urlSoup.title:
+        with open('stopwords.txt', 'r', encoding='utf-8') as file:
+            for line in file:
+                if re.search(r'\b' + line.rstrip('\n') + r'\b', urlSoup.title.text.casefold()):
+                    stopwords_count += 1
+                    stopwords_list.append(line.rstrip('\n'))
+
+        if stopwords_count > 0:
+            print("{0} stop words were found in your page title. If possible, it would be good to "
+                  "reduce them. The stop words found are: {1}".format(stopwords_count, stopwords_list))
+        else:
+            print("Your page title has no stop words. That's good!")
+    else:
+        print("A title was not found for your page.")
+
+
+seo_find_keywords(keywords, urlSoup)
+seo_find_stopwords(urlSoup)
