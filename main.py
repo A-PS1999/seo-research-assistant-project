@@ -4,6 +4,7 @@ This project aims to develop a program that can assist someone trying to engage 
 Planned features include analysis of URL for length and presence of keywords, presence of keywords and stop words on
 the page and an analysis/comparison of keywords across different sites. APIs may be used.
 """
+import api_config
 import requests
 import re
 from bs4 import BeautifulSoup
@@ -21,9 +22,10 @@ while True:
         break
     keywords.append(inp)
 
+agent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0"
 # attempts to access provided URL, returns errors if unable
 try:
-    agent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0"
+    # 'agent' added as part of effort to avoid HTTP Error 403: Forbidden
     url_request = requests.get(url, headers={'User-Agent': agent})
     url_request.raise_for_status()
     urlSoup = BeautifulSoup(url_request.text, 'lxml')
@@ -87,7 +89,25 @@ def seo_url_keywords(keywords, url):
                   "keywords if you lack enough of them.".format(keyword))
 
 
+def seo_get_backlinks(url):
+    endpoint = 'https://lsapi.seomoz.com/v2/url_metrics'
+    headers = {"User-Agent": agent}
+    apirequest = {
+        "targets": [url],
+        "daily_history_values": ["external_pages_to_root_domain"]
+    }
+
+    apiresponse = requests.post(endpoint, json=apirequest, headers=headers,
+                                auth=(api_config.access_id, api_config.api_secret))
+    if apiresponse.status_code != 200:
+        print(apiresponse.status_code)
+        raise SystemExit
+
+    print(apiresponse.content)
+
+
 seo_find_keywords(keywords, urlSoup)
 seo_find_stopwords(urlSoup)
 seo_url_length(url)
 seo_url_keywords(keywords, url)
+seo_get_backlinks(url)
