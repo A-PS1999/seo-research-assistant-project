@@ -7,7 +7,10 @@ the page and an analysis/comparison of keywords across different sites. APIs may
 import api_config
 import requests
 import re
+import json
 from bs4 import BeautifulSoup
+from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 # Get a site URL and create empty list for keywords which will be analysed to be entered.
 # These will be analysed together and separately
@@ -71,6 +74,41 @@ def seo_find_stopwords(urlSoup):
         print("A title was not found for your page.")
 
 
+# below lists and seo_find_404 function used for purpose of finding all broken links in provided url
+search_links = []
+broken_links = []
+
+
+def seo_find_404(urlSoup):
+    s = requests.Session()
+    s.headers['User-Agent'] = 'SEO Research Assistant Program'
+    retry_strategy = Retry(connect=3, backoff_factor=1)
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    s.mount('http://', adapter)
+    s.mount('https://', adapter)
+
+    for link in urlSoup.find_all('a', href=True):
+        search_links.append(link.get('href'))
+
+    broken_links_count = 0
+    for search_link in search_links:
+        try:
+            if not search_link.startswith('#') and not search_link.startswith('/')\
+                    and not search_link.startswith('mailto:') and not 'javascript:' in search_link:
+                broken_query = s.get(search_link, allow_redirects=3)
+
+                if broken_query.status_code == 404:
+                    broken_links.append(search_link)
+                    broken_links_count += 1
+
+        except requests.exceptions.ConnectionError as exc:
+            print('Error: {0}'.format(exc))
+
+    print("{0} broken links were found.".format(broken_links_count))
+    for broken_link in broken_links:
+        print("Broken link found: {0}".format(broken_link))
+
+
 # checks to see if URL is less than 60 characters long for optimum SEO
 def seo_url_length(url):
     if len(url) < 60:
@@ -89,12 +127,19 @@ def seo_url_keywords(keywords, url):
                   "keywords if you lack enough of them.".format(keyword))
 
 
+# gets info about backlinks and domain authority from MOZ API, then writes response to
+# a json file
 def seo_get_backlinks(url):
+    call_query = input("Would you like to call the API for backlinks data? (y/n) ")
+    if call_query == 'n':
+        raise SystemExit
+
     endpoint = 'https://lsapi.seomoz.com/v2/url_metrics'
     headers = {"User-Agent": agent}
     apirequest = {
         "targets": [url],
-        "daily_history_values": ["external_pages_to_root_domain"]
+        "daily_history_values": ["external_pages_to_root_domain", "external_pages_to_page",
+                                 "domain_authority"]
     }
 
     apiresponse = requests.post(endpoint, json=apirequest, headers=headers,
@@ -103,11 +148,13 @@ def seo_get_backlinks(url):
         print(apiresponse.status_code)
         raise SystemExit
 
-    print(apiresponse.content)
+    with open('backlinks_api_response.json', 'w') as responsefile:
+        json.dump(apiresponse.content.decode('utf-8'), responsefile, ensure_ascii=False)
 
 
 seo_find_keywords(keywords, urlSoup)
 seo_find_stopwords(urlSoup)
 seo_url_length(url)
 seo_url_keywords(keywords, url)
+seo_find_404(urlSoup)
 seo_get_backlinks(url)
