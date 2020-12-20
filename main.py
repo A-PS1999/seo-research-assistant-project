@@ -8,7 +8,9 @@ import api_config
 import requests
 import re
 import json
+import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
+from datetime import datetime
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
@@ -48,7 +50,7 @@ def seo_find_keywords(keywords, urlSoup):
             if keyword_count > 0:
                 print("The keyword " + keyword + " was found " + str(keyword_count) + " times in " + url + ".")
             else:
-                print("The keyword '" + keyword + "' was not found in the URL you provided.")
+                print("The keyword '" + keyword + "' was not found on the page.")
     except UnicodeDecodeError as exc:
         print("Error: %s" % exc)
         raise exc
@@ -93,8 +95,8 @@ def seo_find_404(urlSoup):
     broken_links_count = 0
     for search_link in search_links:
         try:
-            if not search_link.startswith('#') and not search_link.startswith('/')\
-                    and not search_link.startswith('mailto:') and not 'javascript:' in search_link:
+            if search_link.startswith('http') and not search_link.startswith('mailto:') \
+                    and 'javascript:' not in search_link:
                 broken_query = s.get(search_link, allow_redirects=3)
 
                 if broken_query.status_code == 404:
@@ -132,14 +134,14 @@ def seo_url_keywords(keywords, url):
 def seo_get_backlinks(url):
     call_query = input("Would you like to call the API for backlinks data? (y/n) ")
     if call_query == 'n':
-        raise SystemExit
+        return None
 
     endpoint = 'https://lsapi.seomoz.com/v2/url_metrics'
     headers = {"User-Agent": agent}
     apirequest = {
         "targets": [url],
-        "daily_history_values": ["external_pages_to_root_domain", "external_pages_to_page",
-                                 "domain_authority"]
+        "daily_history_values": ["external_pages_to_root_domain", "external_pages_to_page"],
+        "monthly_history_values": ["domain_authority"]
     }
 
     apiresponse = requests.post(endpoint, json=apirequest, headers=headers,
@@ -149,7 +151,70 @@ def seo_get_backlinks(url):
         raise SystemExit
 
     with open('backlinks_api_response.json', 'w') as responsefile:
-        json.dump(apiresponse.content.decode('utf-8'), responsefile, ensure_ascii=False)
+        to_json = apiresponse.json()
+        json.dump(to_json, responsefile, ensure_ascii=False)
+
+
+# below .replace() usage to avoid OSError when performing plt.savefig()
+save_url = url.replace("http://", "").replace("https://", "").replace("/", "")
+
+
+# provides data from API response to user in form of print statements and chart made with matplotlib
+def seo_backlinks_report():
+    with open('backlinks_api_response.json', 'r') as f:
+        data = json.load(f)
+        page_crawled_dates = [datetime.strptime(key['date'], '%Y-%m-%d').date() for key in data['results']
+        [0]['daily_history_values']['external_pages_to_root_domain']]
+
+        pages_to_root_counts = [int(key['count']) for key in data['results'][0]['daily_history_values']
+        ['external_pages_to_root_domain']]
+
+        ext_pages_page_counts = [int(key['count']) for key in data['results'][0]['daily_history_values']
+        ['external_pages_to_page']]
+
+        print("The current domain authority of {0} is {1}.".format(url, data['results'][0]['domain_authority']))
+
+    print("Creating graphs for the 'external pages to page' and 'external pages to root domain' metrics"
+          " for {0}.".format(url))
+
+    # below code creates and saves graph for external_pages_to_root_domain data
+    rootfig = plt.figure(dpi=200)
+    plt.plot(page_crawled_dates, pages_to_root_counts, c='blue')
+
+    plt.title("Number of external pages to root domain, {0} - {1}".format(page_crawled_dates[0],
+                                                                          page_crawled_dates[-1]))
+    plt.xlabel("", fontsize=16)
+    rootfig.autofmt_xdate()
+    plt.ylabel("External pages to root domain", fontsize=13)
+
+    plt.savefig("{0}_external_pages_to_root_domain_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
+                                                                      page_crawled_dates[-1]))
+    plt.show()
+    print("Successfully saved an image of "
+          "'{0}_external_pages_to_root_domain_{1}_to_{2}' to your computer.".format(save_url, page_crawled_dates[0],
+                                                                                    page_crawled_dates[-1]))
+
+    # below code creates and saves graph for external_pages_to_page data
+    page_to_pagefig = plt.figure(dpi=200)
+    plt.plot(page_crawled_dates, ext_pages_page_counts, c='blue')
+
+    plt.title("Number of external pages to URL, {0} - {1}".format(page_crawled_dates[0],
+                                                                          page_crawled_dates[-1]))
+    plt.xlabel("", fontsize=13)
+    page_to_pagefig.autofmt_xdate()
+    plt.ylabel("External pages to URL", fontsize=13)
+
+    plt.tight_layout()
+    ax = page_to_pagefig.gca()
+    ax.get_yaxis().set_major_formatter(plt.FormatStrFormatter('%.0f'))
+    ax.tick_params(axis='x', labelsize=8)
+
+    plt.savefig("{0}_external_pages_to_page_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
+                                                                   page_crawled_dates[-1]))
+    plt.show()
+    print("Successfully saved an image of "
+          "'{0}_external_pages_to_page_{1}_to_{2}' to your computer.".format(save_url, page_crawled_dates[0],
+                                                                            page_crawled_dates[-1]))
 
 
 seo_find_keywords(keywords, urlSoup)
@@ -158,3 +223,4 @@ seo_url_length(url)
 seo_url_keywords(keywords, url)
 seo_find_404(urlSoup)
 seo_get_backlinks(url)
+seo_backlinks_report()
