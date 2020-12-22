@@ -1,8 +1,9 @@
 """
 This is my first independent Python project not from one of the books I have read as part of my self-study efforts.
 This project aims to develop a program that can assist someone trying to engage in SEO (Search Engine Optimization).
-Planned features include analysis of URL for length and presence of keywords, presence of keywords and stop words on
-the page and an analysis/comparison of keywords across different sites. APIs may be used.
+Features include an analysis of URL length, analysis of whether or not keywords are present in a URL or the page it
+relates to and analysis of backlinks data collected by an API to provide the user with information about their
+domain/page authority and the number of external pages linking to the provided URL.
 """
 import api_config
 import requests
