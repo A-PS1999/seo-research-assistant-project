@@ -132,10 +132,6 @@ def seo_url_keywords(keywords, url):
 # gets info about backlinks and domain authority from MOZ API, then writes response to
 # a json file
 def seo_get_backlinks(url):
-    call_query = input("Would you like to call the API for backlinks data? (y/n) ")
-    if call_query == 'n':
-        return None
-
     endpoint = 'https://lsapi.seomoz.com/v2/url_metrics'
     headers = {"User-Agent": agent}
     apirequest = {
@@ -173,6 +169,7 @@ def seo_backlinks_report():
         ['external_pages_to_page']]
 
         print("The current domain authority of {0} is {1}.".format(url, data['results'][0]['domain_authority']))
+        print("The current page authority of {0} is {1}.".format(url, data['results'][0]['page_authority']))
 
     print("Creating graphs for the 'external pages to page' and 'external pages to root domain' metrics"
           " for {0}.".format(url))
@@ -222,5 +219,12 @@ seo_find_stopwords(urlSoup)
 seo_url_length(url)
 seo_url_keywords(keywords, url)
 seo_find_404(urlSoup)
-seo_get_backlinks(url)
-seo_backlinks_report()
+
+# to avoid API calls being made every time program is run I opted to make the two below functions optional
+call_query = input("Would you like the program to collect backlinks data and create a report"
+                   " for you? (y/n) ")
+if call_query == 'y':
+    seo_get_backlinks(url)
+    seo_backlinks_report()
+else:
+    raise SystemExit
