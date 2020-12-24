@@ -5,6 +5,7 @@ Features include an analysis of URL length, analysis of whether or not keywords 
 relates to and analysis of backlinks data collected by an API to provide the user with information about their
 domain/page authority and the number of external pages linking to the provided URL.
 """
+from tkinter import *
 import api_config
 import requests
 import re
@@ -15,18 +16,42 @@ from datetime import datetime
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
+root = Tk()
+root.title = "SEO Research Assistant Program"
+
+url_label = Label(root, text="Please enter a URL for the page you would like to analyse:")
+url_entry = Entry(root)
+keywords_label = Label(root, text="Please enter keywords which you would like to analyse."
+                                  " Please enter them like this: 'word, example, test'.")
+keywords_entry = Entry(root)
+keywords_list = []
+
+
+def append_keyword_entry():
+    entry_for_list = keywords_entry.get().split(", ")
+    for entry in entry_for_list:
+        keywords_list.append(entry)
+
+
+test_button = Button(root, text='Print keywords list', command=lambda:[append_keyword_entry(),
+                                                                       seo_find_keywords(keywords, urlSoup),
+                                                                       seo_find_stopwords(urlSoup),
+                                                                       seo_find_404(urlSoup), seo_url_length(url),
+                                                                       seo_url_keywords(keywords, url),
+                                                                       seo_get_backlinks(url), seo_backlinks_report()])
+
+url_label.grid(column=0, row=0)
+url_entry.grid(column=0, row=1)
+keywords_label.grid(column=0, row=3)
+keywords_entry.grid(column=0, row=4)
+test_button.grid(column=1, row=5)
+
+root.mainloop()
+
 # Get a site URL and create empty list for keywords which will be analysed to be entered.
 # These will be analysed together and separately
-url = input("Please enter a URL for the page which you would like to be analysed: ")
-keywords = []
-
-# Ask user for keywords to be put into above list.
-print("Please enter keywords to be analysed. Input nothing to end input: ")
-while True:
-    inp = input()
-    if inp == "":
-        break
-    keywords.append(inp)
+url = url_entry.get()
+keywords = keywords_list
 
 agent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0"
 # attempts to access provided URL, returns errors if unable
