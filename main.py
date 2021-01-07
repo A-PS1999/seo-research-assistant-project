@@ -17,18 +17,19 @@ from datetime import datetime
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
-# creation of various GUI elements; window, info labels, text entry boxes and button
-root = Tk()
-root.title("SEO Research Assistant Program")
 
-url_label = Label(root, text="Please enter a URL for the page you would like to analyse:")
-url_entry = Entry(root)
+def get_url():
+    global urlSoup
+    # 'agent' added as part of effort to avoid HTTP Error 403: Forbidden
+    url_request = requests.get(url_entry.get(), headers={'User-Agent': agent})
 
-keywords_label = Label(root, text="Please enter keywords which you would like to analyse."
-                                  " Please enter them like this: 'word, example, test'.")
-keywords_entry = Entry(root)
-keywords_list = []
-log_text = st.ScrolledText(root, state='disabled')
+    try:
+        url_request.raise_for_status()
+    except requests.exceptions.MissingSchema as exc:
+        log_text.insert(INSERT, "\nERROR: Invalid URL provided. Please try again with a valid URL.")
+        raise exc
+
+    urlSoup = BeautifulSoup(url_request.text, 'lxml')
 
 
 def append_keyword_entry():
@@ -37,55 +38,18 @@ def append_keyword_entry():
         keywords_list.append(entry)
 
 
-start_button = Button(root, text='Run program', command=lambda: [append_keyword_entry(),
-                                                                 seo_find_keywords(keywords, urlSoup),
-                                                                 seo_find_stopwords(urlSoup),
-                                                                 seo_find_404(urlSoup), seo_url_length(url),
-                                                                 seo_url_keywords(keywords, url),
-                                                                 seo_get_backlinks(url), seo_backlinks_report()])
-
-url_label.grid(column=0, row=0)
-url_entry.grid(column=0, row=1)
-keywords_label.grid(column=0, row=3)
-keywords_entry.grid(column=0, row=4)
-log_text.grid(column=2, row=0, rowspan=3)
-start_button.grid(column=1, row=5)
-
-root.mainloop()
-
-
-# Get a site URL and create empty list for keywords which will be analysed to be entered.
-# These will be analysed together and separately
-keywords = keywords_list
-url = url_entry.get()
-
-agent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0"
-# attempts to access provided URL, returns errors if unable
-try:
-    # 'agent' added as part of effort to avoid HTTP Error 403: Forbidden
-    url_request = requests.get(url, headers={'User-Agent': agent})
-    url_request.raise_for_status()
-    urlSoup = BeautifulSoup(url_request.text, 'lxml')
-except requests.exceptions.MissingSchema as exc:
-    log_text.insert(INSERT, "ERROR: Invalid URL provided. Please try again with a valid URL.")
-    raise exc
-except requests.exceptions.HTTPError as exc:
-    log_text.insert(INSERT, "ERROR: 404 error, URL not found.")
-    raise exc
-
-
 # below function scans provided URL and returns all found keywords and the number of times they appear
-def seo_find_keywords(keywords, urlSoup):
+def seo_find_keywords(keywords_list, urlSoup):
     try:
-        for keyword in keywords:
+        for keyword in keywords_list:
             keyword_count = len(re.findall(keyword, str(urlSoup), re.IGNORECASE))
             if keyword_count > 0:
-                log_text.insert(INSERT, "The keyword " + keyword + " was found " + str(keyword_count) +
-                                " times in " + url + ".")
+                log_text.insert(INSERT, "\nThe keyword " + keyword + " was found " + str(keyword_count) +
+                                " times in " + url_entry.get() + ".")
             else:
-                log_text.insert(INSERT, "The keyword '" + keyword + "' was not found on the page.")
+                log_text.insert(INSERT, "\nThe keyword '" + keyword + "' was not found on the page.")
     except UnicodeDecodeError as exc:
-        log_text.insert(INSERT, "Error: {0}".format(exc))
+        log_text.insert(INSERT, "\nError: {0}".format(exc))
         raise exc
 
 
@@ -101,12 +65,12 @@ def seo_find_stopwords(urlSoup):
                     stopwords_list.append(line.rstrip('\n'))
 
         if stopwords_count > 0:
-            log_text.insert(INSERT, "{0} stop words were found in your page title. If possible, it would be good to "
+            log_text.insert(INSERT, "\n{0} stop words were found in your page title. If possible, it would be good to "
                             "reduce them. The stop words found are: {1}".format(stopwords_count, stopwords_list))
         else:
-            log_text.insert(INSERT, "Your page title has no stop words. That's good!")
+            log_text.insert(INSERT, "\nYour page title has no stop words. That's good!")
     else:
-        log_text.insert(INSERT, "A title was not found for your page.")
+        log_text.insert(INSERT, "\nA title was not found for your page.")
 
 
 # below lists and seo_find_404 function used for purpose of finding all broken links in provided url
@@ -129,7 +93,7 @@ def seo_find_404(urlSoup):
     for search_link in search_links:
         try:
             if search_link.startswith('http') and not search_link.startswith('mailto:') \
-                    and 'javascript:' not in search_link:
+                    and 'javascript:' not in search_link and 'tel:' not in search_link:
                 broken_query = s.get(search_link, allow_redirects=3)
 
                 if broken_query.status_code == 404:
@@ -137,29 +101,29 @@ def seo_find_404(urlSoup):
                     broken_links_count += 1
 
         except requests.exceptions.ConnectionError as exc:
-            log_text.insert(INSERT, 'Error: {0}'.format(exc))
+            log_text.insert(INSERT, '\nError: {0}'.format(exc))
 
-    log_text.insert(INSERT, "{0} broken links were found.".format(broken_links_count))
+    log_text.insert(INSERT, "\n{0} broken links were found.".format(broken_links_count))
     for broken_link in broken_links:
-        log_text.insert(INSERT, "Broken link found: {0}".format(broken_link))
+        log_text.insert(INSERT, "\nBroken link found: {0}".format(broken_link))
 
 
 # checks to see if URL is less than 60 characters long for optimum SEO
 def seo_url_length(url):
     if len(url) < 60:
-        log_text.insert(INSERT, "Your URL is in the optimum length range, that's good!")
+        log_text.insert(INSERT, "\nYour URL is in the optimum length range, that's good!")
     elif len(url) > 60:
-        log_text.insert(INSERT, "Your URL is too long for optimum SEO. If possible, try shortening it.")
+        log_text.insert(INSERT, "\nYour URL is too long for optimum SEO. If possible, try shortening it.")
 
 
 # checks for presence of keywords in URL, as keyword presence can be SEO boost
-def seo_url_keywords(keywords, url):
-    for keyword in keywords:
+def seo_url_keywords(keywords_list, url):
+    for keyword in keywords_list:
         if keyword.casefold() in url:
-            log_text.insert(INSERT, "The keyword \"{0}\" was found in your URL. That's good!".format(keyword))
+            log_text.insert(INSERT, "\nThe keyword \"{0}\" was found in your URL. That's good!".format(keyword))
         else:
-            log_text.insert(INSERT, "The keyword \"{0}\" was not found in your URL. Your URL may be improved by adding "
-                                    "keywords if you lack enough of them.".format(keyword))
+            log_text.insert(INSERT, "\nThe keyword \"{0}\" was not found in your URL. Your URL may be improved by "
+                                    "adding keywords if you lack enough of them.".format(keyword))
 
 
 # gets info about backlinks and domain authority from MOZ API, then writes response to
@@ -167,6 +131,7 @@ def seo_url_keywords(keywords, url):
 def seo_get_backlinks(url):
     endpoint = 'https://lsapi.seomoz.com/v2/url_metrics'
     headers = {"User-Agent": agent}
+    url = url_entry.get()
     apirequest = {
         "targets": [url],
         "daily_history_values": ["external_pages_to_root_domain", "external_pages_to_page"],
@@ -179,18 +144,49 @@ def seo_get_backlinks(url):
         print(apiresponse.status_code)
         raise SystemExit
 
-    with open('backlinks_api_response.json', 'w') as responsefile:
+    with open('backlinks_api_response.json', 'w', encoding='utf-8') as responsefile:
         to_json = apiresponse.json()
         json.dump(to_json, responsefile, ensure_ascii=False)
 
 
-# below .replace() usage to avoid OSError when performing plt.savefig()
-save_url = url.replace("http://", "").replace("https://", "").replace("/", "")
+# creation of various GUI elements; window, info labels, text entry boxes and button
+root = Tk()
+root.title("SEO Research Assistant Program")
+
+keywords_label = Label(root, text="Please enter keywords which you would like to analyse."
+                                  " Please enter them like this: 'word, example, test'.")
+keywords_entry = Entry(root, width=80)
+keywords_list = []
+log_text = st.ScrolledText(root, width=80)
+
+url_label = Label(root, text="Please enter a URL for the page you would like to analyse:")
+url_entry = Entry(root, width=80)
+url_entry.bind('<Return>', get_url)
+url = url_entry.get()
+
+
+start_button = Button(root, text='Run program', command=lambda: [get_url(), append_keyword_entry(),
+                                                                 seo_find_keywords(keywords_list, urlSoup),
+                                                                 seo_find_stopwords(urlSoup),
+                                                                 seo_find_404(urlSoup), seo_url_length(url),
+                                                                 seo_url_keywords(keywords_list, url),
+                                                                 seo_get_backlinks(url),
+                                                                 seo_backlinks_report()])
+
+url_label.grid(column=0, row=0)
+url_entry.grid(column=0, row=1)
+keywords_label.grid(column=0, row=3)
+keywords_entry.grid(column=0, row=4)
+log_text.grid(column=2, row=0, rowspan=3)
+start_button.grid(column=1, row=5)
 
 
 # provides data from API response to user in form of print statements and chart made with matplotlib
 def seo_backlinks_report():
-    with open('backlinks_api_response.json', 'r') as f:
+    # below .replace() usage to avoid OSError when performing plt.savefig()
+    to_save = url_entry.get()
+    save_url = to_save.replace("http://", "").replace("https://", "").replace("/", "")
+    with open('backlinks_api_response.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
         page_crawled_dates = [datetime.strptime(key['date'], '%Y-%m-%d').date() for key in data['results']
                               [0]['daily_history_values']['external_pages_to_root_domain']]
@@ -201,13 +197,13 @@ def seo_backlinks_report():
         ext_pages_page_counts = [int(key['count']) for key in data['results'][0]['daily_history_values']
                                  ['external_pages_to_page']]
 
-        log_text.insert(INSERT, "The current domain authority of {0} is "
-                                "{1}.".format(url, data['results'][0]['domain_authority']))
-        log_text.insert(INSERT, "The current page authority of {0} is "
-                                "{1}.".format(url, data['results'][0]['page_authority']))
+        log_text.insert(INSERT, "\nThe current domain authority of {0} is "
+                                "{1}.".format(url_entry.get(), data['results'][0]['domain_authority']))
+        log_text.insert(INSERT, "\nThe current page authority of {0} is "
+                                "{1}.".format(url_entry.get(), data['results'][0]['page_authority']))
 
-    log_text.insert(INSERT, "Creating graphs for the 'external pages to page' and 'external pages to root domain' "
-                            "metrics for {0}.".format(url))
+    log_text.insert(INSERT, "\nCreating graphs for the 'external pages to page' and 'external pages to root domain' "
+                            "metrics for {0}.".format(url_entry.get()))
 
     # below code creates and saves graph for external_pages_to_root_domain data
     rootfig = plt.figure(dpi=200)
@@ -219,12 +215,15 @@ def seo_backlinks_report():
     rootfig.autofmt_xdate()
     plt.ylabel("External pages to root domain", fontsize=13)
 
-    plt.savefig("{0}_external_pages_to_root_domain_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
+    try:
+        plt.savefig("{0}_external_pages_to_root_domain_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
                                                                       page_crawled_dates[-1]))
-    plt.show()
-    log_text.insert(INSERT, "Successfully saved an image of "
-            "'{0}_external_pages_to_root_domain_{1}_to_{2}' to your computer.".format(save_url, page_crawled_dates[0],
-                                                                                    page_crawled_dates[-1]))
+        log_text.insert(INSERT, "\nSuccessfully saved an image of "
+                                "'{0}_external_pages_to_root_domain_{1}_to_{2}' to your computer.".format(save_url,
+                                                                                                page_crawled_dates[0],
+                                                                                                page_crawled_dates[-1]))
+    except Exception as exc:
+        log_text.insert(INSERT, "Error: {0}".format(exc))
 
     # below code creates and saves graph for external_pages_to_page data
     page_to_pagefig = plt.figure(dpi=200)
@@ -241,25 +240,17 @@ def seo_backlinks_report():
     ax.get_yaxis().set_major_formatter(plt.FormatStrFormatter('%.0f'))
     ax.tick_params(axis='x', labelsize=8)
 
-    plt.savefig("{0}_external_pages_to_page_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
-                                                                   page_crawled_dates[-1]))
-    plt.show()
-    log_text.insert(INSERT, "Successfully saved an image of "
-          "'{0}_external_pages_to_page_{1}_to_{2}' to your computer.".format(save_url, page_crawled_dates[0],
-                                                                            page_crawled_dates[-1]))
+    try:
+        plt.savefig("{0}_external_pages_to_page_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
+                                                                       page_crawled_dates[-1]))
+        log_text.insert(INSERT, "\nSuccessfully saved an image of "
+                                "'{0}_external_pages_to_page_{1}_to_{2}' to your computer.".format(save_url,
+                                                                                            page_crawled_dates[0],
+                                                                                            page_crawled_dates[-1]))
+    except Exception as exc:
+        log_text.insert(INSERT, "Error: {0}".format(exc))
 
 
-seo_find_keywords(keywords, urlSoup)
-seo_find_stopwords(urlSoup)
-seo_url_length(url)
-seo_url_keywords(keywords, url)
-seo_find_404(urlSoup)
+agent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:10.0) Gecko/20100101 Firefox/10.0"
 
-# to avoid API calls being made every time program is run I opted to make the two below functions optional
-call_query = input("Would you like the program to collect backlinks data and create a report"
-                   " for you? (y/n) ")
-if call_query == 'y':
-    seo_get_backlinks(url)
-    seo_backlinks_report()
-else:
-    raise SystemExit
+root.mainloop()
