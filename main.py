@@ -7,15 +7,31 @@ domain/page authority and the number of external pages linking to the provided U
 """
 from tkinter import *
 from tkinter import scrolledtext as st
-import api_config
 import requests
 import re
 import json
+import os
+import sys
+import errno
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 from datetime import datetime
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
+
+
+try:
+    if not os.path.exists('output_files'):
+        os.makedirs('output_files')
+except OSError as e:
+    if e.errno != errno.EEXIST:
+        raise e
+
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 
 def get_url():
@@ -58,7 +74,7 @@ def seo_find_stopwords(urlSoup):
     stopwords_count = 0
     stopwords_list = []
     if urlSoup.title:
-        with open('stopwords.txt', 'r', encoding='utf-8') as file:
+        with open(resource_path('stopwords.txt'), 'r', encoding='utf-8') as file:
             for line in file:
                 if re.search(r'\b' + line.rstrip('\n') + r'\b', urlSoup.title.text.casefold()):
                     stopwords_count += 1
@@ -125,6 +141,8 @@ def seo_url_keywords(keywords_list, url):
             log_text.insert(INSERT, "\nThe keyword \"{0}\" was not found in your URL. Your URL may be improved by "
                                     "adding keywords if you lack enough of them.".format(keyword))
 
+    keywords_list.clear()
+
 
 # gets info about backlinks and domain authority from MOZ API, then writes response to
 # a json file
@@ -139,12 +157,12 @@ def seo_get_backlinks(url):
     }
 
     apiresponse = requests.post(endpoint, json=apirequest, headers=headers,
-                                auth=(api_config.access_id, api_config.api_secret))
+                                auth=(os.environ.get('MOZ_ID'), os.environ.get('MOZ_SECRET')))
     if apiresponse.status_code != 200:
         print(apiresponse.status_code)
         raise SystemExit
 
-    with open('backlinks_api_response.json', 'w', encoding='utf-8') as responsefile:
+    with open(r'output_files\backlinks_api_response.json', 'w', encoding='utf-8') as responsefile:
         to_json = apiresponse.json()
         json.dump(to_json, responsefile, ensure_ascii=False)
 
@@ -186,7 +204,7 @@ def seo_backlinks_report():
     # below .replace() usage to avoid OSError when performing plt.savefig()
     to_save = url_entry.get()
     save_url = to_save.replace("http://", "").replace("https://", "").replace("/", "")
-    with open('backlinks_api_response.json', 'r', encoding='utf-8') as f:
+    with open(r'output_files\backlinks_api_response.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
         page_crawled_dates = [datetime.strptime(key['date'], '%Y-%m-%d').date() for key in data['results']
                               [0]['daily_history_values']['external_pages_to_root_domain']]
@@ -216,8 +234,9 @@ def seo_backlinks_report():
     plt.ylabel("External pages to root domain", fontsize=13)
 
     try:
-        plt.savefig("{0}_external_pages_to_root_domain_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
-                                                                      page_crawled_dates[-1]))
+        plt.savefig(r"output_files\{0}_external_pages_to_root_domain_{1}_to_{2}.png".format(save_url,
+                                                                                            page_crawled_dates[0],
+                                                                                            page_crawled_dates[-1]))
         log_text.insert(INSERT, "\nSuccessfully saved an image of "
                                 "'{0}_external_pages_to_root_domain_{1}_to_{2}' to your computer.".format(save_url,
                                                                                                 page_crawled_dates[0],
@@ -241,8 +260,8 @@ def seo_backlinks_report():
     ax.tick_params(axis='x', labelsize=8)
 
     try:
-        plt.savefig("{0}_external_pages_to_page_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
-                                                                       page_crawled_dates[-1]))
+        plt.savefig(r"output_files\{0}_external_pages_to_page_{1}_to_{2}.png".format(save_url, page_crawled_dates[0],
+                                                                                               page_crawled_dates[-1]))
         log_text.insert(INSERT, "\nSuccessfully saved an image of "
                                 "'{0}_external_pages_to_page_{1}_to_{2}' to your computer.".format(save_url,
                                                                                             page_crawled_dates[0],
