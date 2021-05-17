@@ -19,13 +19,15 @@ from datetime import datetime
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
-
+# create directory for files which are created as part of running the program
 try:
     if not os.path.exists('output_files'):
         os.makedirs('output_files')
 except OSError as e:
     if e.errno != errno.EEXIST:
         raise e
+
+# `resource_path` used to access stopwords.txt from within compiled program
 
 
 def resource_path(relative_path):
@@ -46,6 +48,8 @@ def get_url():
         raise exc
 
     urlSoup = BeautifulSoup(url_request.text, 'lxml')
+
+# below function gets keywords from GUI, puts them into a list
 
 
 def append_keyword_entry():
