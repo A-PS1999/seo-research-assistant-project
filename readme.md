@@ -46,7 +46,8 @@ Without setting the above environment variables, the program
 and 'external pages to root domain' metrics.
 
 ## Credits
-Created by me, Samuel Arnold-Parra
+Created by me, Samuel Arnold-Parra.
+
 Special thanks to the users of Stack Overflow and r/learnpython
  for helping me overcome some issues I faced during the 
 development of this program.
