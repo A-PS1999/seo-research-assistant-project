@@ -6,7 +6,7 @@ with Python and express my interest in leveraging Python
 to create applications and software relevant to web 
 development, digital marketing and Search Engine Optimization.
 
-#Features
+## Features
 The program prompts the user to input a website URL and 
 keywords of their choosing. Using the 'requests' module and 
 BeautifulSoup, as well as general Python features, the 
@@ -27,7 +27,7 @@ The program also generates graphs of 'external pages to page'
 to a folder in the directory in which the application executable
  is located.
 
-#Key Modules/Tech Used
+## Key Modules/Tech Used
 * Python 3.8
 * requests
 * BeautifulSoup
@@ -35,7 +35,7 @@ to a folder in the directory in which the application executable
 * Tkinter
 * Moz URL metrics API
 
-#Installation Note
+## Installation Note
 For the program to work fully as intended, you'll need to
  provide your own Moz API credentials as environment variables.
 Your Moz ID should be a variable called `MOZ_ID` and your 
@@ -45,7 +45,7 @@ Without setting the above environment variables, the program
  will be unable to generate graphs on the 'external pages to page' 
 and 'external pages to root domain' metrics.
 
-#Credits
+## Credits
 Created by me, Samuel Arnold-Parra
 Special thanks to the users of Stack Overflow and r/learnpython
  for helping me overcome some issues I faced during the 
